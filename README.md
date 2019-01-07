@@ -45,3 +45,12 @@ $ cf bind-service ...
 ## Restage the drone server to pick up the bound service
 $ cf restage drone-server
 ```
+
+Building the code
+-----------------
+
+```
+export GO111MODULES=on
+go build -mod=vendor
+```
+

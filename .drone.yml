@@ -6,6 +6,6 @@ steps:
 - name: test
   image: golang:1.11
   commands:
-  - go build -o /dev/null
+  - go build -mod=vendor -o /dev/null
 
 ...
