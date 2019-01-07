@@ -6,6 +6,6 @@ steps:
 - name: test
   image: golang:1.11
   commands:
-  - true
+  - go build -o /dev/null
 
 ...
