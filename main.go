@@ -53,5 +53,4 @@ func main() {
 	//	InstanceType: aws.String("t2.small"),
 	//	UserData: aws.String("echo hello world $(hostname)"),
 	//})
-	}
-
+}
