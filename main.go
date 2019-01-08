@@ -47,10 +47,4 @@ func main() {
 	}
 	fmt.Println("Drone Agent Service Broker started on port " + config.API.Port + "...")
 	http.Serve(listener, brokerAPI)
-	//ec2.clientRunEC2(ec2.RunInstancesInput{
-	//	ImageId: aws.String("ami-0016c65679adc75f5"),
-	//	SecurityGroupIds: aws.StringSlice([]string{"sg-0a1b0216ef7084cc0"}),
-	//	InstanceType: aws.String("t2.small"),
-	//	UserData: aws.String("echo hello world $(hostname)"),
-	//})
 }

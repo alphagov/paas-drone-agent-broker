@@ -11,7 +11,7 @@ import (
 
 //go:generate counterfeiter -o fakes/fake_ec2_client.go . Client
 type Client interface {
-	RunEC2(input ec2.RunInstancesInput) error
+	RunEC2(input ec2.RunInstancesInput) (*ec2.Reservation, error)
 }
 
 type EC2Client struct {
@@ -29,7 +29,7 @@ func NewEC2Client(region string) *EC2Client {
 	}
 }
 
-func (s *EC2Client) RunEC2(input ec2.RunInstancesInput) error {
-	_, err := s.EC2.RunInstances(&input)
-	return err
+func (s *EC2Client) RunEC2(input ec2.RunInstancesInput) (*ec2.Reservation, error) {
+	result, err := s.EC2.RunInstances(&input)
+	return result, err
 }
