@@ -17,8 +17,8 @@ import (
 type DroneAgentConfig struct {
 	RPCSecret      string `json:"server_secret"`
 	RPCServer      string `json:"server_address"`
-	RunnerCapacity int `json:"runner_capacity"`
-	LogsDebug      bool `json:"debug_logs"`
+	RunnerCapacity int    `json:"runner_capacity"`
+	LogsDebug      bool   `json:"debug_logs"`
 }
 type DroneAgentProvider struct {
 	Client ec2API.Client
@@ -58,17 +58,44 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 		MaxCount:         aws.Int64(1),
 		MinCount:         aws.Int64(1),
 	}
-	_, err = s.Client.RunEC2(runInstancesInput)
+	provisionResponse, err := s.Client.RunEC2(runInstancesInput)
+
 	if err != nil {
 		return "", "", false, err
 	}
 
-	return "", "", true, err
+	instanceID := provisionResponse.Instances[0].InstanceId
+
+	_, err = s.Client.TagEC2(instanceID, []*ec2.Tag{&ec2.Tag{
+		Key:   aws.String("service_instance_ref"),
+		Value: aws.String(provisionData.Service.ID),
+	},
+		&ec2.Tag{
+			Key:   aws.String("org_guid"),
+			Value: aws.String(provisionData.Details.OrganizationGUID),
+		},
+	})
+	if err != nil {
+		terminateInstanceInput := ec2.TerminateInstancesInput{
+			InstanceIds: []*string{instanceID},
+		}
+		s.Client.TerminateEC2(terminateInstanceInput)
+		return "", aws.StringValue(instanceID), true, errors.New("Tagging failed, terminating instance")
+	}
+
+	return "", aws.StringValue(instanceID), true, err
 }
 
 func (s *DroneAgentProvider) Deprovision(ctx context.Context, deprovisionData provideriface.DeprovisionData) (
 	operationData string, isAsync bool, err error) {
-	return "", false, errors.New("not implemented")
+	terminateInstanceInput := ec2.TerminateInstancesInput{
+		InstanceIds: aws.StringSlice([]string{"i-0491de23c4fb4a1c9"}),
+	}
+	_, err = s.Client.TerminateEC2(terminateInstanceInput)
+	if err != nil {
+		return "", false, err
+	}
+	return "", false, err
 }
 
 func (s *DroneAgentProvider) Bind(ctx context.Context, bindData provideriface.BindData) (
@@ -83,7 +110,7 @@ func (s *DroneAgentProvider) Unbind(ctx context.Context, unbindData providerifac
 
 func (s *DroneAgentProvider) Update(ctx context.Context, updateData provideriface.UpdateData) (
 	operationData string, isAsync bool, err error) {
-	return "", false, errors.New("not implemented")
+	return "", false, brokerapi.ErrPlanChangeNotSupported
 }
 
 func (s *DroneAgentProvider) LastOperation(ctx context.Context, lastOperationData provideriface.LastOperationData) (
