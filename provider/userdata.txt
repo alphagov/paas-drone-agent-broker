@@ -10,4 +10,4 @@ docker run \\
   --restart=always \\
   --detach=true \\
   --name=drone \\
-  drone/agent:1.0.0-rc.1
+  drone/agent:1.0.0-rc.3
