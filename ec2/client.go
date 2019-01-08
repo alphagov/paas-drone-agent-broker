@@ -18,7 +18,7 @@ type EC2Client struct {
 	Timeout time.Duration
 	EC2     ec2iface.EC2API
 }
-
+//function to generate new EC2 instance
 func NewEC2Client(region string) *EC2Client {
 	config := aws.Config{Region: aws.String(region)}
 	sess := session.Must(session.NewSession(&config))
@@ -28,7 +28,7 @@ func NewEC2Client(region string) *EC2Client {
 		EC2:     ec2Client,
 	}
 }
-
+//function to return error if EC2 instance creation generates one
 func (s *EC2Client) RunEC2(input ec2.RunInstancesInput) (*ec2.Reservation, error) {
 	result, err := s.EC2.RunInstances(&input)
 	return result, err
