@@ -1,20 +1,24 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	provideriface "github.com/alphagov/paas-go/provider"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
 	ec2API "github.com/richardTowers/paas-drone-agent-broker/ec2"
+	template2 "text/template"
 )
 
 type DroneAgentConfig struct {
-	RPCSecret      string
-	RPCServer      string
-	RunnerCapacity int
-	LogsDebug      bool
+	RPCSecret      string `json:"server_secret"`
+	RPCServer      string `json:"server_address"`
+	RunnerCapacity int `json:"runner_capacity"`
+	LogsDebug      bool `json:"debug_logs"`
 }
 type DroneAgentProvider struct {
 	Client ec2API.Client
@@ -31,20 +35,35 @@ func NewDroneAgentProvider(config []byte) (provideriface.ServiceProvider, error)
 
 func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provideriface.ProvisionData) (
 	dashboardURL, operationData string, isAsync bool, err error) {
+	var agentConfig DroneAgentConfig
+
+	err = json.Unmarshal(provisionData.Details.RawParameters, &agentConfig)
+
+	template, err := template2.ParseFiles("provider/userdata.txt")
+	if err != nil {
+		return "", "", false, err
+	}
+	var userData bytes.Buffer
+	err = template.Execute(&userData, agentConfig)
+	if err != nil {
+		return "", "", false, err
+	}
+	b64UserData := base64.StdEncoding.EncodeToString(userData.Bytes())
+
 	runInstancesInput := ec2.RunInstancesInput{
 		ImageId:          aws.String("ami-0016c65679adc75f5"),
 		SecurityGroupIds: aws.StringSlice([]string{"sg-0a1b0216ef7084cc0"}),
 		InstanceType:     aws.String("t2.small"),
-		UserData:         aws.String("IyEvYmluL3NoCgpkb2NrZXIgcnVuIFxcCiAgLS12b2x1bWU9L3Zhci9ydW4vZG9ja2VyLnNvY2s6L3Zhci9ydW4vZG9ja2VyLnNvY2sgXFwKICAtLXZvbHVtZT0vdmFyL2xpYi9kcm9uZTovZGF0YSBcXAogIC0tZW52PURST05FX1JQQ19TRVJWRVI9JGRyb25lX3JwY19zZXJ2ZXIgXFwKICAtLWVudj1EUk9ORV9SUENfU0VDUkVUPSRkcm9uZV9ycGNfc2VjcmV0IFxcCiAgLS1lbnY9RFJPTkVfUlVOTkVSX0NBUEFDSVRZPTIgXFwKICAtLWVudj1EUk9ORV9MT0dTX0RFQlVHPXRydWUgXFwKICAtLXJlc3RhcnQ9YWx3YXlzIFxcCiAgLS1kZXRhY2g9dHJ1ZSBcXAogIC0tbmFtZT1kcm9uZSBcXAogIGRyb25lL2FnZW50OjEuMC4wLXJjLjE="),
+		UserData:         &b64UserData,
 		MaxCount:         aws.Int64(1),
 		MinCount:         aws.Int64(1),
 	}
-	reservation, err := s.Client.RunEC2(runInstancesInput)
+	_, err = s.Client.RunEC2(runInstancesInput)
 	if err != nil {
 		return "", "", false, err
 	}
 
-	return aws.StringValue(reservation.Instances[0].PublicIpAddress), "", true, err
+	return "", "", true, err
 }
 
 func (s *DroneAgentProvider) Deprovision(ctx context.Context, deprovisionData provideriface.DeprovisionData) (
