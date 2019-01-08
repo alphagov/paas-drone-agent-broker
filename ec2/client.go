@@ -12,9 +12,6 @@ import (
 //go:generate counterfeiter -o fakes/fake_ec2_client.go . Client
 type Client interface {
 	RunEC2(input ec2.RunInstancesInput) error
-	//DeleteBucket(name string) error
-	//AddUserToBucket(username, bucketName string) (BucketCredentials, error)
-	//RemoveUserFromBucket(username, bucketName string) error
 }
 
 type EC2Client struct {
@@ -22,8 +19,9 @@ type EC2Client struct {
 	EC2     ec2iface.EC2API
 }
 
-func NewEC2Client(bucketPrefix, region string) *EC2Client {
-	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(region)}))
+func NewEC2Client(region string) *EC2Client {
+	config := aws.Config{Region: aws.String(region)}
+	sess := session.Must(session.NewSession(&config))
 	ec2Client := ec2.New(sess)
 	return &EC2Client{
 		Timeout: 30 * time.Second,
