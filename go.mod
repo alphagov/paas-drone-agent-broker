@@ -1,4 +1,4 @@
-module github.com/alphagov/paas-drone-agent-broker
+module github.com/richardTowers/paas-drone-agent-broker
 
 require (
 	code.cloudfoundry.org/lager v2.0.0+incompatible
