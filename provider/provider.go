@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
 	ec2API "github.com/richardTowers/paas-drone-agent-broker/ec2"
+	"log"
 	"strings"
 	template2 "text/template"
 )
@@ -59,7 +60,7 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 	runInstancesInput := ec2.RunInstancesInput{
 		ImageId:          aws.String("ami-0016c65679adc75f5"),
 		SecurityGroupIds: aws.StringSlice([]string{"sg-0a1b0216ef7084cc0"}),
-		InstanceType:     aws.String("t2.small"),
+		InstanceType:     aws.String(provisionData.Plan.Name),
 		UserData:         &b64UserData,
 		MaxCount:         aws.Int64(1),
 		MinCount:         aws.Int64(1),
@@ -132,7 +133,92 @@ func (s *DroneAgentProvider) Unbind(ctx context.Context, unbindData providerifac
 
 func (s *DroneAgentProvider) Update(ctx context.Context, updateData provideriface.UpdateData) (
 	operationData string, isAsync bool, err error) {
-	return "", false, brokerapi.ErrPlanChangeNotSupported
+	serviceRef := updateData.InstanceID
+	reservations, err := s.Client.IdentifyEC2(serviceRef)
+	var instancesTerminated []string
+	var instancesCreated []string
+	var errorInstancesCreated []string
+	var errorInstancesTerminated []string
+	for _, reservation := range reservations {
+		for _, instance := range reservation.Instances {
+			if instance.InstanceType != aws.String(updateData.Plan.Name) {
+				var agentConfig DroneAgentConfig
+				err = json.Unmarshal(updateData.Details.RawParameters, &agentConfig)
+
+				template, err := template2.ParseFiles("provider/userdata.txt")
+				if err != nil {
+					log.Printf("Userdata template not found while creating replacement for %v", aws.StringValue(instance.InstanceId))
+					continue
+				}
+				var userData bytes.Buffer
+				err = template.Execute(&userData, agentConfig)
+				if err != nil {
+					log.Printf("Userdata template execution failed while creating replacement for %v", aws.StringValue(instance.InstanceId))
+					continue
+				}
+				b64UserData := base64.StdEncoding.EncodeToString(userData.Bytes())
+
+				runInstancesInput := ec2.RunInstancesInput{
+					ImageId:          aws.String("ami-0016c65679adc75f5"),
+					SecurityGroupIds: aws.StringSlice([]string{"sg-0a1b0216ef7084cc0"}),
+					InstanceType:     aws.String(updateData.Plan.Name),
+					UserData:         &b64UserData,
+					MaxCount:         aws.Int64(1),
+					MinCount:         aws.Int64(1),
+				}
+				provisionResponse, err := s.Client.RunEC2(runInstancesInput)
+
+				if err != nil {
+					log.Printf("Provisioning failed while creating replacement for %v", aws.StringValue(instance.InstanceId))
+					continue
+				}
+
+				awsInstanceID := provisionResponse.Instances[0].InstanceId
+
+				_, err = s.Client.TagEC2(awsInstanceID, []*ec2.Tag{&ec2.Tag{
+					Key:   aws.String("service_instance_ref"),
+					Value: aws.String(updateData.InstanceID),
+				},
+					&ec2.Tag{
+						Key:   aws.String("org_guid"),
+						Value: aws.String(updateData.Details.PreviousValues.OrgID),
+					},
+					&ec2.Tag{
+						Key:   aws.String("space_guid"),
+						Value: aws.String(updateData.Details.PreviousValues.SpaceID),
+					},
+					&ec2.Tag{
+						Key:   aws.String("service_type"),
+						Value: aws.String("drone_agent"),
+					},
+				})
+				if err != nil {
+					terminateInstanceInput := ec2.TerminateInstancesInput{
+						InstanceIds: []*string{awsInstanceID},
+					}
+					s.Client.TerminateEC2(terminateInstanceInput)
+					log.Printf("Provisioning failed while creating replacement for %v. Terminating new instance %v.", aws.StringValue(instance.InstanceId), aws.StringValue(awsInstanceID))
+					continue
+				}
+				instancesCreated = append(instancesCreated, aws.StringValue(awsInstanceID))
+				terminateInstanceInput := ec2.TerminateInstancesInput{
+					InstanceIds: []*string{instance.InstanceId},
+				}
+				_, err = s.Client.TerminateEC2(terminateInstanceInput)
+				if err != nil {
+					log.Printf("Termination of %v failed.", aws.StringValue(instance.InstanceId))
+					errorInstancesTerminated = append(errorInstancesTerminated, aws.StringValue(instance.InstanceId))
+				}
+				instancesTerminated = append(instancesTerminated, aws.StringValue(instance.InstanceId))
+			}
+		}
+	}
+	if len(errorInstancesCreated) != 0 || len(errorInstancesTerminated) != 0 {
+		outputData := fmt.Sprintf("Terminated: %v, Created: %v", strings.Join(instancesTerminated, ","), strings.Join(instancesCreated, ","))
+		return "", false, errors.New(outputData)
+	}
+	outputData := fmt.Sprintf("Terminated: %v, Created: %v", strings.Join(instancesTerminated, ","), strings.Join(instancesCreated, ","))
+	return outputData, false, nil
 }
 
 func (s *DroneAgentProvider) LastOperation(ctx context.Context, lastOperationData provideriface.LastOperationData) (
