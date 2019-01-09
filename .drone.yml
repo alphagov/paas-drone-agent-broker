@@ -1,0 +1,12 @@
+---
+kind: pipeline
+name: default
+
+steps:
+- name: test
+  image: golang:1.11
+  commands:
+  - go build -mod=vendor -o /dev/null
+  - go test -mod=vendor ./testing/...
+
+...

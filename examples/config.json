@@ -1,0 +1,23 @@
+{
+        "basic_auth_username": "username",
+        "basic_auth_password": "password",
+        "log_level": "debug",
+        "aws_region": "eu-west-2",
+        "catalog": {
+                "services": [{
+                        "id": "uuid-1",
+                        "name": "DroneAgent",
+                        "description": "Drone Client EC2 Instance",
+                        "bindable": true,
+                        "plan_updateable": false,
+                        "requires": [],
+                        "metadata": {},
+                        "plans": [{
+                                "id": "uuid-2",
+                                "name": "t2.small",
+                                "description": "A single Drone agent running on an EC2 t2.small instance",
+                                "metadata": {}
+                        }]
+                }]
+        }
+}
