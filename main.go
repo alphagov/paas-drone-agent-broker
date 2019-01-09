@@ -10,7 +10,7 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"github.com/alphagov/paas-go/broker"
-	"github.com/richardTowers/paas-drone-agent-broker/provider"
+	"github.com/alphagov/paas-drone-agent-broker/provider"
 )
 
 var configFilePath string

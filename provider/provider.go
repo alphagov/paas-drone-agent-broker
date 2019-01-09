@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
-	ec2API "github.com/richardTowers/paas-drone-agent-broker/ec2"
+	ec2API "github.com/alphagov/paas-drone-agent-broker/ec2"
 	"log"
 	"strings"
 	template2 "text/template"
