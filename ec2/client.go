@@ -14,6 +14,7 @@ type Client interface {
 	RunEC2(input ec2.RunInstancesInput) (*ec2.Reservation, error)
 	TerminateEC2(input ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error)
 	TagEC2(instanceID *string, tags []*ec2.Tag) (output *ec2.CreateTagsOutput, err error)
+	IdentifyEC2(instanceID string) (output []*ec2.Reservation, err error)
 }
 
 type EC2Client struct {
@@ -50,4 +51,21 @@ func (s *EC2Client) TagEC2(instanceID *string, tags []*ec2.Tag) (output *ec2.Cre
 	}
 	result, err := s.EC2.CreateTags(&createTagsInput)
 	return result, err
+}
+
+func (s *EC2Client) IdentifyEC2(serviceRef string) (output []*ec2.Reservation, err error) {
+	describeInstanceInput := ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("tag:service_instance_ref"),
+				Values: []*string{aws.String(serviceRef)},
+			},
+			{
+				Name:   aws.String("instance-state-name"),
+				Values: []*string{aws.String("running"), aws.String("pending")},
+			},
+		},
+	}
+	describeInstancesOutput, err := s.EC2.DescribeInstances(&describeInstanceInput)
+	return describeInstancesOutput.Reservations, err
 }

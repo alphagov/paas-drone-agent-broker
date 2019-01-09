@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	provideriface "github.com/alphagov/paas-go/provider"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
 	ec2API "github.com/richardTowers/paas-drone-agent-broker/ec2"
+	"strings"
 	template2 "text/template"
 )
 
@@ -35,6 +37,10 @@ func NewDroneAgentProvider(config []byte) (provideriface.ServiceProvider, error)
 
 func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provideriface.ProvisionData) (
 	dashboardURL, operationData string, isAsync bool, err error) {
+	reservations, err := s.Client.IdentifyEC2(provisionData.InstanceID)
+	if len(reservations) != 0 {
+		return "", "", false, errors.New(fmt.Sprintf("An instance with ID %v already exists", provisionData.InstanceID))
+	}
 	var agentConfig DroneAgentConfig
 
 	err = json.Unmarshal(provisionData.Details.RawParameters, &agentConfig)
@@ -64,38 +70,54 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 		return "", "", false, err
 	}
 
-	instanceID := provisionResponse.Instances[0].InstanceId
+	awsInstanceID := provisionResponse.Instances[0].InstanceId
 
-	_, err = s.Client.TagEC2(instanceID, []*ec2.Tag{&ec2.Tag{
+	_, err = s.Client.TagEC2(awsInstanceID, []*ec2.Tag{&ec2.Tag{
 		Key:   aws.String("service_instance_ref"),
-		Value: aws.String(provisionData.Service.ID),
+		Value: aws.String(provisionData.InstanceID),
 	},
 		&ec2.Tag{
 			Key:   aws.String("org_guid"),
 			Value: aws.String(provisionData.Details.OrganizationGUID),
 		},
+		&ec2.Tag{
+			Key:   aws.String("space_guid"),
+			Value: aws.String(provisionData.Details.SpaceGUID),
+		},
+		&ec2.Tag{
+			Key:   aws.String("service_type"),
+			Value: aws.String("drone_agent"),
+		},
 	})
 	if err != nil {
 		terminateInstanceInput := ec2.TerminateInstancesInput{
-			InstanceIds: []*string{instanceID},
+			InstanceIds: []*string{awsInstanceID},
 		}
 		s.Client.TerminateEC2(terminateInstanceInput)
-		return "", aws.StringValue(instanceID), true, errors.New("Tagging failed, terminating instance")
+		return "", aws.StringValue(awsInstanceID), true, errors.New("Tagging failed, terminating instance")
 	}
 
-	return "", aws.StringValue(instanceID), true, err
+	return "", aws.StringValue(awsInstanceID), true, err
 }
 
 func (s *DroneAgentProvider) Deprovision(ctx context.Context, deprovisionData provideriface.DeprovisionData) (
 	operationData string, isAsync bool, err error) {
+	serviceRef := deprovisionData.InstanceID
+	reservations, err := s.Client.IdentifyEC2(serviceRef)
+	var instanceIDs []string
+	for _, reservation := range reservations {
+		for _, instance := range reservation.Instances {
+			instanceIDs = append(instanceIDs, aws.StringValue(instance.InstanceId))
+		}
+	}
 	terminateInstanceInput := ec2.TerminateInstancesInput{
-		InstanceIds: aws.StringSlice([]string{"i-0491de23c4fb4a1c9"}),
+		InstanceIds: aws.StringSlice(instanceIDs),
 	}
 	_, err = s.Client.TerminateEC2(terminateInstanceInput)
 	if err != nil {
-		return "", false, err
+		return "", false, errors.New(fmt.Sprintf("No instances with ID %v exist", serviceRef))
 	}
-	return "", false, err
+	return strings.Join(instanceIDs, ","), true, err
 }
 
 func (s *DroneAgentProvider) Bind(ctx context.Context, bindData provideriface.BindData) (
