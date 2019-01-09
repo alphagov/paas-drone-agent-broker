@@ -23,16 +23,32 @@ type DroneAgentConfig struct {
 	RunnerCapacity int    `json:"runner_capacity"`
 	LogsDebug      bool   `json:"debug_logs"`
 }
-type DroneAgentProvider struct {
-	Client ec2API.Client
-	Config []byte
+
+type AWSConfig struct {
+	AWSRegion       string `json:"aws_region"`
+	SecurityGroupID string `json:"security_group_id"`
 }
 
-func NewDroneAgentProvider(config []byte) (provideriface.ServiceProvider, error) {
-	client := ec2API.NewEC2Client("eu-west-2")
+type DroneAgentProvider struct {
+	Client          ec2API.Client
+	Config          *AWSConfig
+	SecurityGroupID string
+}
+
+func NewDroneAgentProvider(configJSON []byte) (provideriface.ServiceProvider, error) {
+	config := &AWSConfig{
+		AWSRegion:       "eu-west-2",
+		SecurityGroupID: "",
+	}
+	err := json.Unmarshal(configJSON, &config)
+	if err != nil {
+		return nil, err
+	}
+	client := ec2API.NewEC2Client(config.AWSRegion)
 	return &DroneAgentProvider{
-		Client: client,
-		Config: config,
+		Client:          client,
+		Config:          config,
+		SecurityGroupID: config.SecurityGroupID,
 	}, nil
 }
 
@@ -54,7 +70,7 @@ func (s *DroneAgentProvider) RunInstance(provisionData provideriface.ProvisionDa
 
 	runInstancesInput := ec2.RunInstancesInput{
 		ImageId:          aws.String("ami-0016c65679adc75f5"),
-		SecurityGroupIds: aws.StringSlice([]string{"sg-0a1b0216ef7084cc0"}),
+		SecurityGroupIds: aws.StringSlice([]string{s.Config.SecurityGroupID}),
 		InstanceType:     aws.String(provisionData.Plan.Name),
 		UserData:         &b64UserData,
 		MaxCount:         aws.Int64(1),

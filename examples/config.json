@@ -3,6 +3,7 @@
         "basic_auth_password": "password",
         "log_level": "debug",
         "aws_region": "eu-west-2",
+        "security_group_id": "sg-0a1b0216ef7084cc0",
         "catalog": {
                 "services": [{
                         "id": "uuid-1",
