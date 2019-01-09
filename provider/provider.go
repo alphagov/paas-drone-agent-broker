@@ -112,6 +112,9 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 	}
 	awsInstanceID, err := s.RunInstance(provisionData)
 	if err != nil {
+		if awsInstanceID == "" {
+			return "", "", false, errors.New(fmt.Sprint(err))
+		}
 		terminateInstanceInput := ec2.TerminateInstancesInput{
 			InstanceIds: []*string{aws.String(awsInstanceID)},
 		}
