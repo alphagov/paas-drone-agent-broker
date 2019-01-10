@@ -11,11 +11,11 @@ import (
 	"strings"
 	template2 "text/template"
 
+	ec2API "github.com/alphagov/paas-drone-agent-broker/ec2"
 	provideriface "github.com/alphagov/paas-go/provider"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
-	ec2API "github.com/richardTowers/paas-drone-agent-broker/ec2"
 )
 
 type DroneAgentConfig struct {

@@ -1,5 +1,6 @@
 code.cloudfoundry.org/lager v2.0.0+incompatible h1:WZwDKDB2PLd/oL+USK4b4aEjUymIej9My2nUQ9oWEwQ=
 code.cloudfoundry.org/lager v2.0.0+incompatible/go.mod h1:O2sS7gKP3HM2iemG+EnwvyNQK7pTSC6Foi4QiMp9sSk=
+github.com/alphagov/paas-drone-agent-broker v0.0.0-20190107113136-7a2bea9f9e23 h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 github.com/alphagov/paas-go v0.0.0-20181008075827-0065fc706364 h1:MiFa1urcSIQ8SHdxXBYJvLEsdeiOTFY9570UEqHmEhs=
 github.com/alphagov/paas-go v0.0.0-20181008075827-0065fc706364/go.mod h1:CRAyu4QsK/bYX7MWAcyEhsmuK5PjbFK1WOSkZMqIbLQ=
 github.com/aws/aws-sdk-go v1.16.15 h1:kQyxfRyjAwIYjf0225sn/pn+WAlncKyI8dmT3+ItMFE=
