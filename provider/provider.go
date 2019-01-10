@@ -134,10 +134,10 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 		}
 		_, err = s.Client.TerminateEC2(terminateInstanceInput)
 		if err != nil {
-			return "", awsInstanceID, true, errors.New("Tagging failed, then terminating the new instance failed.")
+			return "", awsInstanceID, true, errors.New("tagging failed, then terminating the new instance failed")
 		}
 
-		return "", awsInstanceID, true, errors.New("Tagging failed, terminating instance")
+		return "", awsInstanceID, true, errors.New("tagging failed, terminating instance")
 	}
 
 	return "", awsInstanceID, true, err
@@ -158,7 +158,7 @@ func (s *DroneAgentProvider) Deprovision(ctx context.Context, deprovisionData pr
 	}
 	_, err = s.Client.TerminateEC2(terminateInstanceInput)
 	if err != nil {
-		return "", false, errors.New(fmt.Sprintf("No instances with ID %v exist", serviceRef))
+		return "", false, fmt.Errorf("No instances with ID %v exist", serviceRef)
 	}
 	return strings.Join(instanceIDs, ","), true, err
 }
