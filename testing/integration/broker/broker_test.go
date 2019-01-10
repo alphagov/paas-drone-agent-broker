@@ -15,7 +15,7 @@ import (
 	"github.com/alphagov/paas-go/broker"
 	brokertesting "github.com/alphagov/paas-go/testing/broker"
 	"github.com/pivotal-cf/brokerapi"
-	provideriface "github.com/richardTowers/paas-drone-agent-broker/provider"
+	provideriface "github.com/alphagov/paas-drone-agent-broker/provider"
 	"net/http/httptest"
 )
 

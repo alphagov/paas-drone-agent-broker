@@ -6,7 +6,7 @@ import (
 
 	aws "github.com/aws/aws-sdk-go/aws"
 	awsEC2 "github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/richardTowers/paas-drone-agent-broker/ec2"
+	"github.com/alphagov/paas-drone-agent-broker/ec2"
 	fakeClient "github.com/richardTowers/paas-drone-agent-broker/ec2/fakes"
 
 	. "github.com/onsi/ginkgo"
