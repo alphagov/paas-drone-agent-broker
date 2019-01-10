@@ -296,7 +296,8 @@ func (s *DroneAgentProvider) LastOperation(ctx context.Context, lastOperationDat
 			state = brokerapi.Failed
 		}
 	} else {
-		return "", description, fmt.Errorf("unexpected operation %s", operation)
+		state = brokerapi.Failed
+		log.Printf("unexpected operation %s", operation)
 	}
 
 	return state, description, nil
