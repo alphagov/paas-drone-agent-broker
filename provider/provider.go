@@ -7,14 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"strings"
+	template2 "text/template"
+
 	provideriface "github.com/alphagov/paas-go/provider"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pivotal-cf/brokerapi"
-	ec2API "github.com/alphagov/paas-drone-agent-broker/ec2"
-	"log"
-	"strings"
-	template2 "text/template"
+	ec2API "github.com/richardTowers/paas-drone-agent-broker/ec2"
 )
 
 type DroneAgentConfig struct {
@@ -56,8 +57,18 @@ func (s *DroneAgentProvider) RunInstance(provisionData provideriface.ProvisionDa
 	var agentConfig DroneAgentConfig
 
 	err := json.Unmarshal(provisionData.Details.RawParameters, &agentConfig)
-
-	template, err := template2.ParseFiles("provider/userdata.txt")
+	template, err := template2.New("userdata").Parse(`#!/bin/sh
+docker run \
+	--volume=/var/run/docker.sock:/var/run/docker.sock \
+	--volume=/var/lib/drone:/data \
+	--env=DRONE_RPC_SERVER={{.RPCServer}} \
+	--env=DRONE_RPC_SECRET={{.RPCSecret}} \
+	--env=DRONE_RUNNER_CAPACITY={{.RunnerCapacity}} \
+	--env=DRONE_LOGS_DEBUG={{.LogsDebug}} \
+	--restart=always \
+	--detach=true \
+	--name=drone \
+	drone/agent:1.0.0-rc.3`)
 	if err != nil {
 		return "", err
 	}
