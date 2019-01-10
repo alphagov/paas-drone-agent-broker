@@ -107,6 +107,10 @@ docker run \
 		Value: aws.String(provisionData.InstanceID),
 	},
 		{
+			Key:   aws.String("name"),
+			Value: aws.String("drone_agent/" + provisionData.InstanceID),
+		},
+		{
 			Key:   aws.String("org_guid"),
 			Value: aws.String(provisionData.Details.OrganizationGUID),
 		},
