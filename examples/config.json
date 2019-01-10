@@ -4,6 +4,8 @@
         "log_level": "debug",
         "aws_region": "eu-west-2",
         "security_group_id": "sg-0a1b0216ef7084cc0",
+        "subnet_id": "subnet-1234abcd",
+        "agent_ami": "ami-0016c65679adc75f5",
         "catalog": {
                 "services": [{
                         "id": "uuid-1",

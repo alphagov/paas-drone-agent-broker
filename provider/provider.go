@@ -28,18 +28,21 @@ type DroneAgentConfig struct {
 type AWSConfig struct {
 	AWSRegion       string `json:"aws_region"`
 	SecurityGroupID string `json:"security_group_id"`
+	SubnetID        string `json:"subnet_id"`
+	AgentAMI        string `json:"agent_ami"`
 }
 
 type DroneAgentProvider struct {
-	Client          ec2API.Client
-	Config          *AWSConfig
-	SecurityGroupID string
+	Client ec2API.Client
+	Config *AWSConfig
 }
 
 func NewDroneAgentProvider(configJSON []byte) (provideriface.ServiceProvider, error) {
 	config := &AWSConfig{
 		AWSRegion:       "eu-west-2",
 		SecurityGroupID: "",
+		SubnetID:        "",
+		AgentAMI:        "",
 	}
 	err := json.Unmarshal(configJSON, &config)
 	if err != nil {
@@ -47,9 +50,8 @@ func NewDroneAgentProvider(configJSON []byte) (provideriface.ServiceProvider, er
 	}
 	client := ec2API.NewEC2Client(config.AWSRegion)
 	return &DroneAgentProvider{
-		Client:          client,
-		Config:          config,
-		SecurityGroupID: config.SecurityGroupID,
+		Client: client,
+		Config: config,
 	}, nil
 }
 
@@ -80,12 +82,13 @@ docker run \
 	b64UserData := base64.StdEncoding.EncodeToString(userData.Bytes())
 
 	runInstancesInput := ec2.RunInstancesInput{
-		ImageId:          aws.String("ami-0016c65679adc75f5"),
+		ImageId:          aws.String(s.Config.AgentAMI),
 		SecurityGroupIds: aws.StringSlice([]string{s.Config.SecurityGroupID}),
 		InstanceType:     aws.String(provisionData.Plan.Name),
 		UserData:         &b64UserData,
 		MaxCount:         aws.Int64(1),
 		MinCount:         aws.Int64(1),
+		SubnetId:         aws.String(s.Config.SubnetID),
 	}
 	provisionResponse, err := s.Client.RunEC2(runInstancesInput)
 
@@ -119,7 +122,7 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 	dashboardURL, operationData string, isAsync bool, err error) {
 	reservations, err := s.Client.IdentifyEC2(provisionData.InstanceID)
 	if len(reservations) != 0 {
-		return "", "", false, errors.New(fmt.Sprintf("An instance with ID %v already exists", provisionData.InstanceID))
+		return "", "", false, fmt.Errorf("An instance with ID %v already exists", provisionData.InstanceID)
 	}
 	awsInstanceID, err := s.RunInstance(provisionData)
 	if err != nil {
