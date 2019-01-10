@@ -29,7 +29,8 @@ type AWSConfig struct {
 	AWSRegion       string `json:"aws_region"`
 	SecurityGroupID string `json:"security_group_id"`
 	SubnetID        string `json:"subnet_id"`
-	AgentAMI        string `json:"agent_ami"`
+	AgentAMIName    string `json:"agent_ami_name"`
+	AgentAMIOwner   string `json:"agent_ami_owner"`
 }
 
 type DroneAgentProvider struct {
@@ -42,7 +43,8 @@ func NewDroneAgentProvider(configJSON []byte) (provideriface.ServiceProvider, er
 		AWSRegion:       "eu-west-2",
 		SecurityGroupID: "",
 		SubnetID:        "",
-		AgentAMI:        "",
+		AgentAMIName:    "",
+		AgentAMIOwner:   "",
 	}
 	err := json.Unmarshal(configJSON, &config)
 	if err != nil {
@@ -81,8 +83,10 @@ docker run \
 	}
 	b64UserData := base64.StdEncoding.EncodeToString(userData.Bytes())
 
+	img, err := s.Client.GetAmi(s.Config.AgentAMIOwner, s.Config.AgentAMIName)
+
 	runInstancesInput := ec2.RunInstancesInput{
-		ImageId:          aws.String(s.Config.AgentAMI),
+		ImageId:          img.ImageId,
 		SecurityGroupIds: aws.StringSlice([]string{s.Config.SecurityGroupID}),
 		InstanceType:     aws.String(provisionData.Plan.Name),
 		UserData:         &b64UserData,

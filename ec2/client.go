@@ -1,8 +1,9 @@
 package ec2
 
 import (
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"time"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -15,6 +16,7 @@ type Client interface {
 	TerminateEC2(input ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error)
 	TagEC2(instanceID *string, tags []*ec2.Tag) (output *ec2.CreateTagsOutput, err error)
 	IdentifyEC2(instanceID string) (output []*ec2.Reservation, err error)
+	GetAmi(owner string, name string) (ami *ec2.Image, err error)
 }
 
 type EC2Client struct {
@@ -68,4 +70,19 @@ func (s *EC2Client) IdentifyEC2(serviceRef string) (output []*ec2.Reservation, e
 	}
 	describeInstancesOutput, err := s.EC2.DescribeInstances(&describeInstanceInput)
 	return describeInstancesOutput.Reservations, err
+}
+
+func (s *EC2Client) GetAmi(owner string, name string) (ami *ec2.Image, err error) {
+	imageFilter := ec2.Filter{
+		Name:   aws.String("name"),
+		Values: aws.StringSlice([]string{name}),
+	}
+	describeImageInput := ec2.DescribeImagesInput{
+		Owners:  aws.StringSlice([]string{owner}),
+		Filters: []*ec2.Filter{&imageFilter},
+	}
+
+	image, err := s.EC2.DescribeImages(&describeImageInput)
+
+	return image.Images[0], err
 }
