@@ -138,13 +138,13 @@ func (s *DroneAgentProvider) Provision(ctx context.Context, provisionData provid
 		}
 		_, err = s.Client.TerminateEC2(terminateInstanceInput)
 		if err != nil {
-			return "", awsInstanceID, true, errors.New("tagging failed, then terminating the new instance failed")
+			return "", "provision", true, errors.New("tagging failed, then terminating the new instance failed")
 		}
 
-		return "", awsInstanceID, true, errors.New("tagging failed, terminating instance")
+		return "", "provision", true, errors.New("tagging failed, terminating instance")
 	}
 
-	return "", awsInstanceID, true, err
+	return "", "provision", true, err
 }
 
 func (s *DroneAgentProvider) Deprovision(ctx context.Context, deprovisionData provideriface.DeprovisionData) (
@@ -162,9 +162,9 @@ func (s *DroneAgentProvider) Deprovision(ctx context.Context, deprovisionData pr
 	}
 	_, err = s.Client.TerminateEC2(terminateInstanceInput)
 	if err != nil {
-		return "", false, fmt.Errorf("No instances with ID %v exist", serviceRef)
+		return "deprovision", false, fmt.Errorf("No instances with ID %v exist", serviceRef)
 	}
-	return strings.Join(instanceIDs, ","), true, err
+	return "deprovision", true, err
 }
 
 func (s *DroneAgentProvider) Bind(ctx context.Context, bindData provideriface.BindData) (
@@ -217,13 +217,87 @@ func (s *DroneAgentProvider) Update(ctx context.Context, updateData providerifac
 	}
 	if len(errorInstancesCreated) != 0 || len(errorInstancesTerminated) != 0 {
 		outputData := fmt.Sprintf("Terminated: %v, Created: %v", strings.Join(instancesTerminated, ","), strings.Join(instancesCreated, ","))
-		return "", false, errors.New(outputData)
+		return "update", false, errors.New(outputData)
 	}
-	outputData := fmt.Sprintf("Terminated: %v, Created: %v", strings.Join(instancesTerminated, ","), strings.Join(instancesCreated, ","))
-	return outputData, false, nil
+	return "update", false, nil
 }
 
 func (s *DroneAgentProvider) LastOperation(ctx context.Context, lastOperationData provideriface.LastOperationData) (
 	state brokerapi.LastOperationState, description string, err error) {
-	return "", "", errors.New("not implemented")
+	serviceRef := lastOperationData.InstanceID
+	reservations, err := s.Client.IdentifyEC2(serviceRef)
+	if err != nil {
+		return "", "", fmt.Errorf("could not get EC2 instances for %v", err)
+	}
+	instanceCount := 0
+	var (
+		pendingCount      = 0
+		runningCount      = 0
+		shuttingDownCount = 0
+		terminatedCount   = 0
+		stoppingCount     = 0
+		stoppedCount      = 0
+	)
+	for _, reservation := range reservations {
+		for _, instance := range reservation.Instances {
+			instanceCount = instanceCount + 1
+			state := aws.StringValue(instance.State.Name)
+			if state == "pending" {
+				pendingCount++
+			} else if state == "running" {
+				runningCount++
+			} else if state == "shutting-down" {
+				shuttingDownCount++
+			} else if state == "terminated" {
+				terminatedCount++
+			} else if state == "stopping" {
+				stoppingCount++
+			} else if state == "stopped" {
+				stoppedCount++
+			} else {
+				log.Printf("unexpected state %s for instance %s", state, aws.StringValue(instance.InstanceId))
+			}
+		}
+	}
+
+	description = fmt.Sprintf(
+		"pending: %d, running: %d, shutting-down: %d, terminated: %d, stopping: %d, stopped: %d",
+		pendingCount,
+		runningCount,
+		shuttingDownCount,
+		terminatedCount,
+		stoppingCount,
+		stoppedCount,
+	)
+
+	operation := lastOperationData.PollDetails.OperationData
+	if operation == "provision" {
+		if instanceCount == runningCount {
+			state = brokerapi.Succeeded
+		} else if instanceCount == runningCount+pendingCount {
+			state = brokerapi.InProgress
+		} else {
+			state = brokerapi.Failed
+		}
+	} else if operation == "deprovision" {
+		if instanceCount == terminatedCount {
+			state = brokerapi.Succeeded
+		} else if instanceCount == shuttingDownCount+terminatedCount {
+			state = brokerapi.InProgress
+		} else {
+			state = brokerapi.Failed
+		}
+	} else if operation == "update" {
+		if instanceCount == runningCount+terminatedCount {
+			state = brokerapi.Succeeded
+		} else if pendingCount+shuttingDownCount > 0 {
+			state = brokerapi.InProgress
+		} else {
+			state = brokerapi.Failed
+		}
+	} else {
+		return "", description, fmt.Errorf("unexpected operation %s", operation)
+	}
+
+	return state, description, nil
 }
